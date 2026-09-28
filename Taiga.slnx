@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Taiga.Core/Taiga.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Taiga.Core.Tests/Taiga.Core.Tests.csproj" />
+  </Folder>
+</Solution>

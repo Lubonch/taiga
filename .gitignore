@@ -3,3 +3,7 @@
 /deps/lib/
 /project/vs*/.vs/
 /project/vs*/*.user
+# .NET (migración multiplataforma)
+[Bb]in/
+[Oo]bj/
+TestResults/

@@ -1,0 +1,36 @@
+name: dotnet-ci
+
+on:
+  push:
+    branches: [feature/dotnet-migration, develop, master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            10.0.x
+            8.0.x
+      - name: Restore
+        run: dotnet restore Taiga.slnx
+        if: hashFiles('Taiga.slnx') != ''
+      - name: Format check
+        run: dotnet format --verify-no-changes --verbosity diagnostic
+        if: hashFiles('Taiga.slnx') != ''
+      - name: Build
+        run: dotnet build Taiga.slnx --configuration Release --no-restore
+        if: hashFiles('Taiga.slnx') != ''
+      - name: Test
+        run: dotnet test Taiga.slnx --configuration Release --no-build --collect:"XPlat Code Coverage"
+        if: hashFiles('Taiga.slnx') != ''
