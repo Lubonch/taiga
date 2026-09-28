@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Taiga
+Comment=Anime tracker for Linux — sincroniza tu progreso con AniList, Kitsu y MyAnimeList
+Exec=taiga %U
+Icon=taiga
+Categories=AudioVideo;Player;
+Terminal=false
+StartupWMClass=Taiga

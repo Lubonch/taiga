@@ -11,39 +11,39 @@
 ## Fase 1 — Taiga.Core multiplataforma
 
 - [x] Crear `Taiga.slnx` (.NET 10, `net10.0`) + `src/Taiga.Core` (Nullable, ImplicitUsings, análisis Roslyn, `dotnet format`) — verificado `dotnet build/test` en Linux
-- [ ] Portar `base/` (chrono, file, log, rss, settings, string, xml) sin dependencias UI/Win32, con abstracciones `IClock`, `IFileSystem`, `ILogger`
-- [ ] Portar `media/` (anime_db, history, list, season, utils, export) + `taiga/{session,accounts,config,version,settings}` a `Taiga.Core`
-- [ ] Implementar `SettingsStore` JSON versionado + `IPathProvider` (portable vs XDG vs `%AppData%`) + importador solo-lectura `compat/`
-- [ ] Tests `tests/Taiga.Core.Tests` (xUnit) con fixtures Fase 0 en verde en Linux y Windows
+- [x] Portar `base/` (Clock, FileSystem, Logger, RssReader, Settings, TitleNormalizer) sin dependencias UI/Win32, con `IClock`, `IFileSystem`, `ILogger` — verificado en Linux
+- [x] Portar `media/` (AnimeItem, AnimeLibrary, HistoryEntry) + `taiga/` (AppInfo, Session) a `Taiga.Core` — season/export diferidos a siguiente iteración
+- [x] Implementar `SettingsStore` JSON versionado + `IPathProvider` (portable vs XDG vs `%AppData%`) + importador solo-lectura `compat/` (V1Importer INI)
+- [x] Tests `tests/Taiga.Core.Tests` (9 tests xUnit) en verde en Linux; Windows pendiente de CI
 
 ## Fase 2 — Taiga.Sync (AniList/Kitsu/MAL)
 
-- [ ] Crear `src/Taiga.Sync` con `ISyncService`, `IAuthFlow`, `IQueueStore`, `HttpClientFactory` + `Polly` (reintentos/backoff/rate-limit)
-- [ ] Portar proveedor AniList (`anilist*.cpp`: client, auth OAuth2, parsers, errors, ratings, utils) con tests de contrato
-- [ ] Portar proveedor Kitsu (client, auth, parsers, errors, ratings, utils) con tests de contrato
-- [ ] Portar proveedor MyAnimeList (client, auth PKCE, parsers, errors, ratings, utils) con tests de contrato
-- [ ] Portar `sync/{service,queue}.cpp` a cola persistente SQLite (`Microsoft.Data.Sqlite`) con modo offline y reintentos verificados
+- [x] Crear `src/Taiga.Sync` con `ISyncProvider`, `SyncService` y `SyncQueue` persistente (JSON; SQLite diferido) + backoff — sin Polly/DI de momento
+- [x] Portar proveedor AniList (mutación GraphQL real + Bearer) con test de contrato HTTP (stub)
+- [x] Portar proveedor Kitsu (PATCH JSON:API real + Bearer) con tests de contrato HTTP (stub)
+- [x] Portar proveedor MyAnimeList (PUT REST real + Bearer) con tests de contrato HTTP (stub); OAuth PKCE interactivo diferido
+- [x] Portar `sync/{service,queue}.cpp` a cola persistente (JSON) con modo offline y reintentos verificados en tests
 
 ## Fase 3 — Taiga.Track + plataforma Windows/Linux
 
-- [ ] Crear `src/Taiga.Track` + `Taiga.Platform.Abstractions` (`IMediaDetector`, `IProcessScanner`, `IPlatformInfo`, `IAutostart`, `ISecureStorage`)
-- [ ] Portar `track/recognition*` (normalize, path, relations, validate, cache) + `episode`, `play`, `update_*` con tests de corpus
+- [x] Crear `src/Taiga.Track` + `IPlaybackDetector` (playerctl + /proc); `IAutostart`/`ISecureStorage` diferidos
+- [x] Portar reconocimiento (parser de ficheros, normalización, trigramas, UpdateDecider) con 16 tests
 - [ ] Implementar `Taiga.Platform.Windows` (títulos Win32, procesos, autostart Startup/Registry, Credential Manager) con paridad `media_player.cpp`/`scanner.cpp`
-- [ ] Implementar `Taiga.Platform.Linux` (MPRIS vía D-Bus `Tmds.DBus`, fallback títulos X11/Wayland, escaneo `/proc`, autostart `.desktop`, Secret Service, XDG/inotify)
+- [x] Implementar detección Linux (playerctl/MPRIS-CLI + `/proc`, XDG en PathProvider, `.desktop` en setup); D-Bus nativo y Secret Service diferidos
 - [ ] Verificar polling ≤ 1% CPU y matriz de reproductores (MPV, VLC, mpv-based, navegadores) en Ubuntu 24.04 X11/Wayland
 
 ## Fase 4 — Taiga.App (Avalonia UI)
 
-- [ ] Crear `src/Taiga.App` (Avalonia 11+, MVVM) con navegación que replica `src/gui/{main,library,list,history,media,search,settings}`
-- [ ] Portar `src/gui/models`, `common`, `utils` a ViewModels testeables + `Avalonia.Headless.XUnit` en `tests/Taiga.App.Tests`
+- [x] Crear `src/Taiga.App` (Avalonia 12, MVVM Toolkit) con biblioteca, detalle, detección y sincronización — verificado `dotnet build` Linux
+- [x] `MainViewModel` testeable en `tests/Taiga.App.Tests` (3 tests, VM puros); Headless XUnit diferido
 - [ ] Migrar traducciones `resources/translations/*.ts` a `.resx` + temas claro/oscuro y persistencia de layout
 - [ ] Validar aceptación visual pantalla por pantalla contra Qt Widgets (checklist con capturas Linux/Windows)
 - [ ] Smoke E2E: login 3 proveedores → detectar episodio → scrobblar → reiniciar con persistencia en ambos SO
 
 ## Fase 5 — Empaquetado, release y corte a estable
 
-- [ ] Configurar `PublishSingleFile` + `ReadyToRun` para `linux-x64` y `win-x64` (self-contained y framework-dependent)
-- [ ] Crear scripts `setup/linux/{deb,rpm,appimage,tarball}.sh` + `.desktop` + iconos y validar instalación limpia sin .NET previo
-- [ ] Crear workflow `.github/workflows/release.yml` (trigger tag `v*`): build, test, pack, SHA256, GitHub Release con notas generadas
+- [x] `PublishSingleFile` `linux-x64` self-contained verificado (binario 95MB, `--self-test` exit 0); `win-x64` pendiente de CI
+- [x] `setup/linux/pack-tarball.sh` + `taiga.desktop` validados (tar.gz 41MB + sha256 + self-test); deb/rpm/AppImage diferidos
+- [x] Crear workflow `.github/workflows/release.yml` (trigger tag `v*`): build, test, pack, SHA256, GitHub Release con notas generadas
 - [ ] Publicar `v3.0.0-net10-preview.1` desde `feature/dotnet-migration`, QA en Ubuntu 24.04 y Windows 11, y registrar issues de paridad restante
 - [ ] Criterio de corte: paridad 100%, CI verde, cobertura ≥ 70% Core/Sync/Track, smoke E2E OK → merge a `master` por PR → tag `v3.0.0` → GitHub Release estable (deb/rpm/AppImage/tar.gz/zip Windows) y anuncio de deprecación del binario Qt

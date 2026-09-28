@@ -1,0 +1,85 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            10.0.x
+            8.0.x
+      - run: dotnet build Taiga.slnx --configuration Release
+      - run: dotnet test Taiga.slnx --configuration Release --no-build
+
+  publish:
+    needs: build-test
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            ext: tar.gz
+          - os: windows-latest
+            rid: win-x64
+            ext: zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            10.0.x
+            8.0.x
+      - name: Publish self-contained
+        run: >
+          dotnet publish ./src/Taiga.App/Taiga.App.csproj -c Release
+          -r ${{ matrix.rid }} --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o ./dist/taiga-${{ github.ref_name }}-${{ matrix.rid }}
+      - name: Self-test (linux)
+        if: matrix.rid == 'linux-x64'
+        run: ./dist/taiga-${{ github.ref_name }}-linux-x64/Taiga.App --self-test
+      - name: Pack (linux)
+        if: matrix.rid == 'linux-x64'
+        run: |
+          cp setup/linux/taiga.desktop ./dist/taiga-${{ github.ref_name }}-linux-x64/
+          tar -czf ./dist/taiga-${{ github.ref_name }}-linux-x64.tar.gz -C ./dist taiga-${{ github.ref_name }}-linux-x64
+          (cd ./dist && sha256sum taiga-${{ github.ref_name }}-linux-x64.tar.gz > taiga-${{ github.ref_name }}-linux-x64.tar.gz.sha256)
+      - name: Pack (windows)
+        if: matrix.rid == 'win-x64'
+        run: >
+          Compress-Archive -Path ./dist/taiga-${{ github.ref_name }}-win-x64/*
+          -DestinationPath ./dist/taiga-${{ github.ref_name }}-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: taiga-${{ matrix.rid }}
+          path: ./dist/taiga-${{ github.ref_name }}-${{ matrix.rid }}.${{ matrix.ext }}*
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ./dist/*
+          generate_release_notes: true

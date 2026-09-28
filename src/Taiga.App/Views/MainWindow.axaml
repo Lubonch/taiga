@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Taiga.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+        x:Class="Taiga.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Taiga — Anime Tracker (Linux)">
+
+    <Design.DataContext>
+        <vm:MainViewModel />
+    </Design.DataContext>
+
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="8">
+            <Button Content="Detectar ahora" Command="{Binding ScanNowCommand}" />
+            <Button Content="Sincronizar" Command="{Binding SyncNowCommand}" />
+            <TextBlock Text="{Binding NowPlaying}" VerticalAlignment="Center" FontStyle="Italic" />
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" Margin="8,4" Opacity="0.8" />
+
+        <Grid ColumnDefinitions="2*,*" Margin="8">
+            <ListBox Grid.Column="0" ItemsSource="{Binding Library}" SelectedItem="{Binding SelectedAnime}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                            <TextBlock Text="{Binding WatchedEpisodes, StringFormat='ep. {0}'}" Opacity="0.7" />
+                            <TextBlock Text="{Binding MyStatus}" Opacity="0.7" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <StackPanel Grid.Column="1" Margin="12,0,0,0" Spacing="6" DataContext="{Binding SelectedAnime}">
+                <TextBlock Text="Detalle" FontWeight="Bold" FontSize="16" />
+                <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                <TextBlock Text="{Binding EnglishTitle}" Opacity="0.7" />
+                <TextBlock Text="{Binding WatchedEpisodes, StringFormat='Vistos: {0}'}" />
+                <TextBlock Text="{Binding EpisodeCount, StringFormat='Episodios: {0}'}" />
+                <TextBlock Text="{Binding MyStatus, StringFormat='Estado: {0}'}" />
+                <TextBlock Text="{Binding Score, StringFormat='Puntuación: {0}'}" />
+                <TextBlock Text="{Binding Synopsis}" TextWrapping="Wrap" Opacity="0.8" />
+            </StackPanel>
+        </Grid>
+    </DockPanel>
+
+</Window>

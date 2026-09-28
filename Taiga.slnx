@@ -1,8 +1,14 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Taiga.App/Taiga.App.csproj" />
     <Project Path="src/Taiga.Core/Taiga.Core.csproj" />
+    <Project Path="src/Taiga.Sync/Taiga.Sync.csproj" />
+    <Project Path="src/Taiga.Track/Taiga.Track.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Taiga.App.Tests/Taiga.App.Tests.csproj" />
     <Project Path="tests/Taiga.Core.Tests/Taiga.Core.Tests.csproj" />
+    <Project Path="tests/Taiga.Sync.Tests/Taiga.Sync.Tests.csproj" />
+    <Project Path="tests/Taiga.Track.Tests/Taiga.Track.Tests.csproj" />
   </Folder>
 </Solution>
