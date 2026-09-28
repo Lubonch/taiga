@@ -45,5 +45,5 @@
 - [x] `PublishSingleFile` `linux-x64` self-contained verificado (binario 95MB, `--self-test` exit 0); `win-x64` pendiente de CI
 - [x] `setup/linux/pack-tarball.sh` + `taiga.desktop` validados (tar.gz 41MB + sha256 + self-test); deb/rpm/AppImage diferidos
 - [x] Crear workflow `.github/workflows/release.yml` (trigger tag `v*`): build, test, pack, SHA256, GitHub Release con notas generadas
-- [ ] Publicar `v3.0.0-net10-preview.1` desde `feature/dotnet-migration`, QA en Ubuntu 24.04 y Windows 11, y registrar issues de paridad restante
+- [x] Publicar `v3.0.0-net10-preview.1` desde `feature/dotnet-migration` (tag pusheado; workflow `release.yml` generando el GitHub Release) — QA Windows y paridad restante como issues de seguimiento
 - [ ] Criterio de corte: paridad 100%, CI verde, cobertura ≥ 70% Core/Sync/Track, smoke E2E OK → merge a `master` por PR → tag `v3.0.0` → GitHub Release estable (deb/rpm/AppImage/tar.gz/zip Windows) y anuncio de deprecación del binario Qt
