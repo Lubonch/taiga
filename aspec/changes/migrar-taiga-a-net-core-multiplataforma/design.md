@@ -1,49 +1,56 @@
-# Design: Migración completa de Taiga a .NET moderno multiplataforma (Linux)
+# Design: Taiga multiplataforma — backend .NET + front Angular + shell Electron
 
 ## Approach
 
-Migración por reescritura estructurada (no conversión automática C++ → C#), en fases verificables sobre el branch `feature/dotnet-migration` creado desde `master`:
+Sobre `feature/dotnet-migration`, conservando Fase 0–3 (Core/Sync/Track verificados) y sustituyendo la Fase 4 (Avalonia) por API + Angular + Electron:
 
-1. **Inventario y línea base (Fase 0):** congelar comportamiento v2.0.0 (`CMakeLists.txt:3-8`, `src/`). Producir matriz de paridad: cada `.cpp/.hpp` mapeado a proyecto/clase C# objetivo + fixtures de parsers (`anilist_parsers`, `kitsu_parsers`, `myanimelist_parsers`), reconocimiento (`track/recognition*`), cola (`sync/queue.cpp`) y ajustes (`base/settings`, `taiga/settings`, `compat/settings`).
-2. **Core multiplataforma (Fase 1):** `Taiga.Core` (.NET 10, `net10.0`, Nullable + ImplicitUsings + análisis) con `base/` (chrono, file, log, rss, settings, string, xml), `media/` (anime_db, history, list, season, utils), `compat/` (importador v1 solo lectura) y `taiga/` (session, accounts, config, version). Sin dependencias UI ni Win32. Tests xUnit con paridad de fixtures C++.
-3. **Sync (Fase 2):** `Taiga.Sync` con `HttpClientFactory` + `Polly` (reintentos), OAuth2 (AniList/Kitsu/MAL: `*_auth.cpp`, `*_error.cpp`, `*_ratings.cpp`, `*_utils.cpp`), `Service` + `Queue` persistente (SQLite vía `Microsoft.Data.Sqlite` + EF Core o Dapper ligero). Tests de contrato con respuestas grabadas.
-4. **Track Linux/Windows (Fase 3):** `Taiga.Track` con `IMediaDetector`, `IProcessScanner`, `IUpdateDecision`. Implementación Windows (Win32 titles/procesos, paridad actual `media_player.cpp`/`scanner.cpp`) e implementación Linux (MPRIS D-Bus vía `Tmds.DBus`, fallback X11 `_NET_WM_NAME` / Wayland `wlr-foreign-toplevel` donde sea posible + escaneo `/proc`). `recognition_*` portado a `System.Text.RegularExpressions` + normalización Unicode.
-5. **App Avalonia (Fase 4):** `Taiga.App` (Avalonia 11+, MVVM con `ReactiveUI` o `CommunityToolkit.Mvvm`) que replica `src/gui/{common,history,library,list,main,media,models,search,settings,utils}`. Temas claro/oscuro, traducciones vía `.resx` (migración de `resources/translations/taiga_*.ts`), navegación y bindings testeados con `Avalonia.Headless.XUnit`.
-6. **Plataforma, empaquetado y release (Fase 5):** `Taiga.Platform.{Windows,Linux}` (`IPathProvider` XDG vs `%AppData%`, autostart `.desktop` vs Startup/Registry, `ISecureStorage` Credential Manager vs Secret Service/libsecret). Publicación self-contained + framework-dependent para `linux-x64` y `win-x64` (`PublishSingleFile`, `ReadyToRun`). Artefactos: `tar.gz`, `.deb`, `.rpm`, `AppImage` y `.zip` Windows. CI GitHub Actions `build-test-pack-release.yml` + release con tags `v*` y notas generadas.
+1. **Taiga.Server (Fase 4a):** proyecto ASP.NET Core (`net10.0`) que expone en `http://127.0.0.1:<puerto>`:
+   - `GET /api/library`, `GET /api/library/{id}`, `PUT /api/library/{id}` (progreso/estado/nota → actualiza + encola sync).
+   - `GET /api/now-playing`, `POST /api/scan` (corre detectores → `UpdateDecider` → persiste).
+   - `POST /api/sync` (vacía la cola contra el proveedor configurado), `GET /api/queue`.
+   - `GET/PUT /api/settings` (incluye tokens por proveedor), `GET /api/history`.
+   - `WS /ws/events` (now-playing y cambios de cola en push).
+   - Puerto: `TAIGA_PORT` o efímero libre; token efímero (`TAIGA_TOKEN`, 256 bits) exigido en header `X-Taiga-Token` salvo loopback sin token en modo dev. OpenAPI en `/swagger` solo en `Development`.
+   - Tests: `tests/Taiga.Server.Tests` con `WebApplicationFactory` (CRUD biblioteca, scan sin reproductor, sync sin proveedor, auth del token).
+2. **frontend/ (Fase 4b):** Angular 19+ standalone (`npm ci`, `ng build --configuration production` → `frontend/dist/` embebido como `wwwroot` del server en release). Vistas: biblioteca (filtro por estado + búsqueda), detalle, historial, temporada (abanico de `EpisodeCount`/emisión si hay datos), ajustes (servicio, tokens, carpetas, intervalo). Tema oscuro por defecto. Sin SSR.
+3. **electron/ (Fase 4c):** `main.ts` (arranca `resources/bin/Taiga.Server`, espera `/api/health`, abre ventana, instancia única, tray con "Detectar ahora" → `POST /api/scan`, "Sincronizar" → `POST /api/sync`, "Salir"). `preload.ts` con `contextBridge` mínimo (el front habla directo al server por HTTP/WS; Electron solo shell). `electron-builder.yml`: `nsis` (exe x64), `deb` (x64), `dir` (base del tarball y del PKGBUILD).
+4. **Empaquetado (Fase 5):**
+   - Windows: `Taiga Setup <versión>.exe` (NSIS, per-user, sin firma — uso personal).
+   - Debian/Ubuntu: `taiga_<versión>_amd64.deb` (depende solo de libc/webkit del sistema vía Electron; el server es self-contained).
+   - **Arch**: `setup/arch/PKGBUILD` (`pkgname=taiga-bin`, `source=(taiga-$VERSION-linux-x64.tar.gz)`, `sha256sums`, instala en `/opt/taiga`, `.desktop` en `/usr/share/applications`, symlink `/usr/bin/taiga`; `makepkg -si`; `.SRCINFO` generado con `makepkg --printsrcinfo`). El tarball incluye `Taiga.Server` + `frontend/dist` + `electron/dist` + `taiga.desktop`.
+   - `setup/linux/pack-tarball.sh` se extiende para armar ese tarball unificado.
+5. **Eliminación de Avalonia:** `git rm src/Taiga.App tests/Taiga.App.Tests`, quitar del `.slnx`; `tests/Taiga.App.Tests` se sustituye por `tests/Taiga.Server.Tests`.
 
-Decisiones clave: **.NET 10 LTS** como TFM único (`net10.0`, langVersion latest); **Avalonia** sobre MAUI/WinForms/WPF por soporte real Linux; **SQLite + JSON** para settings/portable (`TAIGA_PORTABLE` → carpeta junto al binario o XDG); **branch único de migración** con merges por fase, sin commits directos a `master`.
+Decisiones clave: **loopback + token efímero** (sin auth pesada, sin exponer LAN); **server sirve el front** (un solo proceso, cero CORS en prod); **electron-builder** para exe/deb y `dir` como materia prima de Arch; **PKGBUILD `-bin`** (aceptado por AUR para binarios).
 
 ## Architecture
 
 ```text
-Taiga.sln (net10.0)
-├── src/Taiga.Core/            # base/*, media/*, compat/* (import), taiga/{session,accounts,config,version,settings}
-│   ├── Infrastructure/Logging, Time, FileSystem, Xml, Rss, SettingsStore
-│   └── Media/Anime, AnimeDb, History, List, Season, Recognition-support types
-├── src/Taiga.Sync/            # sync/{service,queue,anilist,kitsu,myanimelist}
-│   ├── Abstractions/ISyncService, IAuthFlow, IRateLimiter, IQueueStore
-│   └── Providers/AniList|Kitsu|MyAnimeList (client+parsers+errors+ratings+auth)
-├── src/Taiga.Track/           # track/*
-│   ├── Recognition/*, UpdateSession/Decision/State, Scanner, Play, Episode
-│   └── Detection/IMediaDetector → WindowsDetector | LinuxMprisDetector (+FallbackTitleDetector)
-├── src/Taiga.Platform.Abstractions/  # IPathProvider, IAutostart, ISecureStorage, IPlatformInfo
-├── src/Taiga.Platform.Windows/       # Win32, Credential Manager, Registry/Startup
-├── src/Taiga.Platform.Linux/         # XDG, .desktop autostart, Secret Service, MPRIS/D-Bus, inotify
-├── src/Taiga.App/             # Avalonia UI (Views/ViewModels) ↔ port de src/gui/**
-│   └── i18n/*.resx ← migración de resources/translations/*.ts
-└── tests/{Core,Sync,Track,App}.Tests/  # xUnit + FluentAssertions + Headless Avalonia
+Taiga.slnx (net10.0)
+├── src/Taiga.Core/     # sin cambios (Media, Settings, Platform, Text, Compat, Taiga)
+├── src/Taiga.Sync/     # sin cambios (Queue, Service, Providers MAL/AniList/Kitsu)
+├── src/Taiga.Track/    # sin cambios (Parser, Recognition, UpdateDecider, Detectores)
+├── src/Taiga.Server/   # NUEVO ASP.NET Core (Program.cs, Endpoints/*, wwwroot <- frontend/dist)
+│   └── Endpoints/Library, NowPlaying, Scan, Sync, Settings, History, Health + EventsHub(WS)
+├── tests/Taiga.Server.Tests/  # NUEVO (WebApplicationFactory)
+├── frontend/           # NUEVO Angular (app/routes: library, detail, history, season, settings)
+├── electron/           # NUEVO (main.ts, preload.ts, electron-builder.yml)
+└── setup/
+    ├── linux/pack-tarball.sh   # tarball unificado (server+front+electron dir)
+    └── arch/{PKGBUILD,taiga.desktop,README-arch.md}
 ```
 
 Flujos principales:
 
-- **Detección → decisión → update:** `Scanner` (polling + eventos) → `MediaDetector` específico de SO → `Recognition` (normalize/path/relations/validate/cache) → `UpdateDecision` → `UpdateSession` → `Sync.Queue` → `ISyncService.UpdateAsync`.
-- **Settings/paths:** `IPathProvider.GetAppData()` resuelve portable (`TAIGA_PORTABLE` / `.portable`) vs XDG (`~/.config/taiga`, `~/.local/share/taiga`) vs Windows (`%AppData%/Taiga`); `SettingsStore` JSON versionado + migración desde `compat/settings`.
-- **Branch/release:** `feature/dotnet-migration` (protegida, CI obligatorio) → PRs por fase → `master`. Tags `v3.0.0-net10-preview.N` para previews Linux; `v3.0.0` estable cuando la matriz de paridad esté al 100% y QA Linux/Windows pase. Workflow `release.yml` (trigger por tag `v*`) compila, firma hashes (SHA256), genera `.deb/.rpm/AppImage/tar.gz/zip`, publica GitHub Release y actualiza notas.
+- **Arranque (Electron):** elige puerto libre → lanza `Taiga.Server --port X --token Y` → espera `GET /api/health` → abre `http://127.0.0.1:X/` en la ventana. Al salir, mata el sidecar.
+- **Detección → UI:** `POST /api/scan` (o polling del front cada N s a `GET /api/now-playing`) → playerctl/`/proc` → parser → `Recognition` → `UpdateDecider` → persiste biblioteca + encola → evento WS → el front refresca.
+- **Sync:** `POST /api/sync` → `SyncService.FlushAsync` contra proveedor con token de `ProviderCredentials`.
+- **Instalación Arch:** `cd setup/arch && makepkg -si` (o `yay -S taiga-bin` si se sube al AUR) → `/opt/taiga/taiga` + `.desktop` → aparece en el lanzador; `taiga` en terminal.
 
 ## Validation
 
-- **Paridad funcional:** checklist `src/` → C# al 100%; tests de parsers con fixtures reales de AniList/Kitsu/MAL; tests de reconocimiento con corpus de nombres (`anitomy`/`anime-relations` incluidos); `sync/queue` con reintentos/offline cubierto.
-- **Multiplataforma:** `dotnet build/test` verde en `ubuntu-latest` + `windows-latest`; smoke manual en Ubuntu 24.04 (X11 y Wayland) y Windows 11: iniciar, login OAuth en los 3 proveedores, detectar MPV/VLC/mpv-like vía MPRIS y Win32, scrobblar, reiniciar con persistencia.
-- **Empaquetado:** instalación limpia de `.deb` y `AppImage` en VM Ubuntu sin .NET previo (self-contained); `win-x64` arranca sin regresiones vs binario Qt 2.0.0.
-- **Rendimiento/robustez:** arranque < 2s en hardware medio, polling detector ≤ 1% CPU, sin secretos en logs, análisis Roslyn + `dotnet format` sin warnings, cobertura ≥ 70% en Core/Sync/Track.
-- **Release:** `git checkout -b feature/dotnet-migration master` + push + protección de rama verificados; release preview descargable con checksums y notas; criterio de corte a estable documentado en `tasks.md`.
+- **API:** `dotnet test` (contrato de cada endpoint + token requerido/rechazado + scan sin reproductor no revienta + sync sin proveedor deja cola).
+- **Front:** `npm ci && npm run build` verde; navegación biblioteca→detalle→ajustes sin errores de consola; `ng test` si hay specs (mínimo: servicio API con HttpClient stub).
+- **Shell:** `electron-builder --dir` genera el árbol; arranque manual abre la ventana contra el server local (smoke con `--self-test`-equivalente: `Taiga.Server --self-test` reutiliza las comprobaciones del Core).
+- **Instaladores:** `.deb` instala en Ubuntu/Debian y abre desde el dock; `.exe` NSIS instala per-user en Windows; en Arch `makepkg -si` instala y `taiga --self-test` (server) pasa; `.desktop` visible en GNOME/KDE.
+- **Release:** tag `v3.0.0-net10-preview.2` → `release.yml` produce exe + deb + tarball + PKGBUILD con SHA256 en el GitHub Release.

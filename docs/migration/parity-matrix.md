@@ -1,3 +1,5 @@
+> Nota (esquema Electron): `src/Taiga.App` (Avalonia) queda superseded por `Taiga.Server` + `frontend/` + `electron/`. La fila ui/** mapea ahora a vistas Angular.
+
 # Matriz de paridad C++ → C# — Taiga .NET migration
 
 Base: branch `feature/dotnet-migration` desde `origin/master` (v1.4.1, 214 ficheros `*.cpp/*.h` en `src/`).

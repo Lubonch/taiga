@@ -1,49 +1,58 @@
-# Tasks: Migración completa de Taiga a .NET moderno multiplataforma (Linux)
+# Tasks: Taiga multiplataforma — backend .NET + front Angular + shell Electron
 
-## Fase 0 — Línea base, branch y CI mínimo
+## Fase 0 — Línea base, branch y CI mínimo ✅
 
-- [x] Crear y publicar el branch `feature/dotnet-migration` desde `master` (`git checkout -b feature/dotnet-migration origin/master && git remote set-url origin git@github.com:Lubonch/taiga.git && git push -u origin feature/dotnet-migration`) — publicado vía SSH; protección manual en GitHub UI según `docs/migration/versioning.md` (sin `gh` en entorno)
-- [x] Inventariar `src/**` (base, compat, media, sync, taiga, track, gui, resources) y publicar matriz de paridad C++ → C# en `docs/migration/parity-matrix.md`
-- [x] Extraer fixtures de `sync/*_parsers`, `track/recognition*`, `sync/queue` y corpus de nombres para tests de contrato
-- [x] Crear workflow base `.github/workflows/dotnet-ci.yml` (`ubuntu-latest` + `windows-latest`: `dotnet build` + `dotnet test`) en el branch de migración
-- [x] Definir versionado SemVer y política de tags (`v3.0.0-net10-preview.N` → `v3.0.0`) en `docs/migration/versioning.md`
+- [x] Crear y publicar el branch `feature/dotnet-migration` desde `master` (publicado vía SSH; protección manual según `docs/migration/versioning.md`)
+- [x] Inventariar `src/**` y publicar matriz de paridad en `docs/migration/parity-matrix.md`
+- [x] Extraer fixtures de `sync/*_parsers`, `track/recognition*`, `sync/queue` y corpus de nombres
+- [x] Workflow base `.github/workflows/dotnet-ci.yml` (`ubuntu-latest` + `windows-latest`)
+- [x] Versionado SemVer (`v3.0.0-net10-preview.N` → `v3.0.0`) en `docs/migration/versioning.md`
 
-## Fase 1 — Taiga.Core multiplataforma
+## Fase 1 — Taiga.Core multiplataforma ✅
 
-- [x] Crear `Taiga.slnx` (.NET 10, `net10.0`) + `src/Taiga.Core` (Nullable, ImplicitUsings, análisis Roslyn, `dotnet format`) — verificado `dotnet build/test` en Linux
-- [x] Portar `base/` (Clock, FileSystem, Logger, RssReader, Settings, TitleNormalizer) sin dependencias UI/Win32, con `IClock`, `IFileSystem`, `ILogger` — verificado en Linux
-- [x] Portar `media/` (AnimeItem, AnimeLibrary, HistoryEntry) + `taiga/` (AppInfo, Session) a `Taiga.Core` — season/export diferidos a siguiente iteración
-- [x] Implementar `SettingsStore` JSON versionado + `IPathProvider` (portable vs XDG vs `%AppData%`) + importador solo-lectura `compat/` (V1Importer INI)
-- [x] Tests `tests/Taiga.Core.Tests` (9 tests xUnit) en verde en Linux; Windows pendiente de CI
+- [x] `Taiga.slnx` (.NET 10) + `src/Taiga.Core` (Nullable, ImplicitUsings, análisis, `dotnet format`)
+- [x] `base/` (Clock, FileSystem, Logger, RssReader, Settings, TitleNormalizer) con `IClock`, `IFileSystem`, `ILogger`
+- [x] `media/` (AnimeItem, AnimeLibrary, HistoryEntry) + `taiga/` (AppInfo, Session)
+- [x] `SettingsStore` JSON + `IPathProvider` (portable/XDG/`%AppData%`) + `V1Importer`
+- [x] `tests/Taiga.Core.Tests` en verde en Linux
 
-## Fase 2 — Taiga.Sync (AniList/Kitsu/MAL)
+## Fase 2 — Taiga.Sync (AniList/Kitsu/MAL) ✅
 
-- [x] Crear `src/Taiga.Sync` con `ISyncProvider`, `SyncService` y `SyncQueue` persistente (JSON; SQLite diferido) + backoff — sin Polly/DI de momento
-- [x] Portar proveedor AniList (mutación GraphQL real + Bearer) con test de contrato HTTP (stub)
-- [x] Portar proveedor Kitsu (PATCH JSON:API real + Bearer) con tests de contrato HTTP (stub)
-- [x] Portar proveedor MyAnimeList (PUT REST real + Bearer) con tests de contrato HTTP (stub); OAuth PKCE interactivo diferido
-- [x] Portar `sync/{service,queue}.cpp` a cola persistente (JSON) con modo offline y reintentos verificados en tests
+- [x] `src/Taiga.Sync` (`ISyncProvider`, `SyncService`, `SyncQueue` persistente + backoff)
+- [x] Proveedores AniList (GraphQL), Kitsu (JSON:API), MyAnimeList (REST) con tests de contrato HTTP
+- [x] Cola offline con reintentos verificados en tests
 
-## Fase 3 — Taiga.Track + plataforma Windows/Linux
+## Fase 3 — Taiga.Track + detección Linux ✅ (parcial)
 
-- [x] Crear `src/Taiga.Track` + `IPlaybackDetector` (playerctl + /proc); `IAutostart`/`ISecureStorage` diferidos
-- [x] Portar reconocimiento (parser de ficheros, normalización, trigramas, UpdateDecider) con 16 tests
-- [ ] Implementar `Taiga.Platform.Windows` (títulos Win32, procesos, autostart Startup/Registry, Credential Manager) con paridad `media_player.cpp`/`scanner.cpp`
-- [x] Implementar detección Linux (playerctl/MPRIS-CLI + `/proc`, XDG en PathProvider, `.desktop` en setup); D-Bus nativo y Secret Service diferidos
-- [ ] Verificar polling ≤ 1% CPU y matriz de reproductores (MPV, VLC, mpv-based, navegadores) en Ubuntu 24.04 X11/Wayland
+- [x] `src/Taiga.Track` + `IPlaybackDetector` (playerctl + `/proc`)
+- [x] Reconocimiento (parser, normalización, trigramas, `UpdateDecider`) con tests
+- [x] Detección Linux + XDG + `.desktop`; D-Bus nativo y Secret Service diferidos
+- [ ] `Taiga.Platform.Windows` (Win32) — requiere máquina Windows/CI
+- [ ] Polling ≤ 1% CPU y matriz de reproductores en Ubuntu con escritorio real
 
-## Fase 4 — Taiga.App (Avalonia UI)
+## Fase 4a — Taiga.Server (API local) — NUEVO
 
-- [x] Crear `src/Taiga.App` (Avalonia 12, MVVM Toolkit) con biblioteca, detalle, detección y sincronización — verificado `dotnet build` Linux
-- [x] `MainViewModel` testeable en `tests/Taiga.App.Tests` (3 tests, VM puros); Headless XUnit diferido
-- [ ] Migrar traducciones `resources/translations/*.ts` a `.resx` + temas claro/oscuro y persistencia de layout
-- [ ] Validar aceptación visual pantalla por pantalla contra Qt Widgets (checklist con capturas Linux/Windows)
-- [ ] Smoke E2E: login 3 proveedores → detectar episodio → scrobblar → reiniciar con persistencia en ambos SO
+- [ ] Crear `src/Taiga.Server` (ASP.NET Core `net10.0`): `Program.cs` (puerto/token efímeros, `wwwroot`), endpoints Health/Library/NowPlaying/Scan/Sync/Queue/Settings/History + `WS /ws/events`
+- [ ] Servir `frontend/dist` como `wwwroot` en Release + `--self-test` del server (reutiliza comprobaciones Core)
+- [ ] Crear `tests/Taiga.Server.Tests` (`WebApplicationFactory`): CRUD biblioteca, scan sin reproductor, sync sin proveedor, token requerido/rechazado
+- [ ] Eliminar `src/Taiga.App` y `tests/Taiga.App.Tests` del repo y del `.slnx` (superseded por Server+Angular)
 
-## Fase 5 — Empaquetado, release y corte a estable
+## Fase 4b — frontend/ Angular — NUEVO
 
-- [x] `PublishSingleFile` `linux-x64` self-contained verificado (binario 95MB, `--self-test` exit 0); `win-x64` pendiente de CI
-- [x] `setup/linux/pack-tarball.sh` + `taiga.desktop` validados (tar.gz 41MB + sha256 + self-test); deb/rpm/AppImage diferidos
-- [x] Crear workflow `.github/workflows/release.yml` (trigger tag `v*`): build, test, pack, SHA256, GitHub Release con notas generadas
-- [x] Publicar `v3.0.0-net10-preview.1` desde `feature/dotnet-migration` (tag pusheado; workflow `release.yml` generando el GitHub Release) — QA Windows y paridad restante como issues de seguimiento
-- [ ] Criterio de corte: paridad 100%, CI verde, cobertura ≥ 70% Core/Sync/Track, smoke E2E OK → merge a `master` por PR → tag `v3.0.0` → GitHub Release estable (deb/rpm/AppImage/tar.gz/zip Windows) y anuncio de deprecación del binario Qt
+- [ ] Crear `frontend/` (Angular standalone, routing): biblioteca (filtro + búsqueda), detalle, historial, temporada, ajustes (servicio, tokens, carpetas, intervalo), tema oscuro
+- [ ] Cliente API (`api.service.ts`) contra `127.0.0.1` + live-update por WS (`events.service.ts`)
+- [ ] `npm ci && npm run build` verde; specs mínimos del servicio API con stub HTTP
+
+## Fase 4c — electron/ shell — NUEVO
+
+- [ ] Crear `electron/` (`main.ts`: puerto libre, sidecar `Taiga.Server`, health-check, instancia única, tray con Detectar/Sincronizar/Salir; `preload.ts` mínimo; `electron-builder.yml`)
+- [ ] `electron-builder --dir` verificado en Linux (árbol + arranque manual contra server local)
+
+## Fase 5 — Instaladores (exe, deb, Arch) y release — NUEVO
+
+- [ ] `electron-builder`: `Taiga Setup <v>.exe` (NSIS per-user) y `taiga_<v>_amd64.deb` verificados (CI Windows + Ubuntu)
+- [ ] `setup/arch/PKGBUILD` (`taiga-bin`: source tarball + sha256, `/opt/taiga`, `.desktop`, `/usr/bin/taiga`) + `.SRCINFO` + `README-arch.md` (`makepkg -si`, AUR)
+- [ ] Extender `setup/linux/pack-tarball.sh` al tarball unificado (server + front + electron dir) con self-test
+- [ ] `release.yml` por tag: exe + deb + tarball + PKGBUILD con SHA256 en el GitHub Release
+- [ ] Publicar `v3.0.0-net10-preview.2` (esquema Electron) y QA en Arch (`makepkg -si` + arranque desde lanzador) y Windows (exe)
+- [ ] Criterio de corte: API 100% + front paridad (biblioteca/detalle/historial/búsqueda/temporada/ajustes) + instaladores exe/deb/Arch OK → merge a `master` → `v3.0.0`
