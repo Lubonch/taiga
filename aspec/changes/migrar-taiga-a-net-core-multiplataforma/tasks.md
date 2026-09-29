@@ -54,5 +54,5 @@
 - [x] `setup/arch/PKGBUILD` (`taiga-bin`) + `.SRCINFO` + `README-arch.md`; `makepkg` construye el paquete con layout verificado (`/opt/taiga`, `.desktop`, `/usr/bin/taiga`)
 - [x] `setup/linux/pack-tarball.sh` unificado verificado (tar.gz 152MB + sha256 + self-test OK)
 - [x] `release.yml` por tag: dotnet+ng test/build, exe + deb + tarball + PKGBUILD con SHA256 en el GitHub Release
-- [ ] Publicar `v3.0.0-net10-preview.2` (esquema Electron) y QA en Arch (`makepkg -si` + arranque desde lanzador) y Windows (exe)
+- [x] Publicar `v3.0.0-net10-preview.2` (tag pusheado; release.yml genera exe+deb+tarball) — QA Arch/Windows pendiente de descarga del Release
 - [ ] Criterio de corte: API 100% + front paridad (biblioteca/detalle/historial/búsqueda/temporada/ajustes) + instaladores exe/deb/Arch OK → merge a `master` → `v3.0.0`
