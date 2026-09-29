@@ -1,0 +1,27 @@
+appId: moe.taiga.app
+productName: Taiga
+directories:
+  output: release
+files:
+  - dist/**
+  - package.json
+extraResources:
+  - from: ../publish/server-linux-x64
+    to: bin
+    filter: ['**/*']
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  shortcutName: Taiga
+linux:
+  target:
+    - deb
+    - dir
+  category: AudioVideo
+  maintainer: taiga
+deb:
+  depends: ['libgtk-3-0', 'libnotify4', 'libnss3', 'libxss1', 'libxtst6', 'xdg-utils', 'libatspi2.0-0', 'libuuid1']

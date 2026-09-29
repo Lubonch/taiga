@@ -22,8 +22,17 @@ jobs:
           dotnet-version: |
             10.0.x
             8.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            electron/package-lock.json
       - run: dotnet build Taiga.slnx --configuration Release
       - run: dotnet test Taiga.slnx --configuration Release --no-build
+      - run: npm ci --prefix frontend
+      - run: npx --prefix frontend ng build --configuration production
 
   publish:
     needs: build-test
@@ -32,10 +41,8 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
-            ext: tar.gz
           - os: windows-latest
             rid: win-x64
-            ext: zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -46,40 +53,68 @@ jobs:
           dotnet-version: |
             10.0.x
             8.0.x
-      - name: Publish self-contained
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            electron/package-lock.json
+      - name: Build frontend
+        run: |
+          npm ci --prefix frontend
+          npx --prefix frontend ng build --configuration production
+      - name: Publish Taiga.Server
         run: >
-          dotnet publish ./src/Taiga.App/Taiga.App.csproj -c Release
-          -r ${{ matrix.rid }} --self-contained
-          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
-          -o ./dist/taiga-${{ github.ref_name }}-${{ matrix.rid }}
+          dotnet publish ./src/Taiga.Server/Taiga.Server.csproj -c Release
+          -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true
+          -o ./publish/server-${{ matrix.rid }}
+      - name: Stage wwwroot
+        shell: bash
+        run: |
+          mkdir -p ./publish/server-${{ matrix.rid }}/wwwroot
+          cp -r ./frontend/dist/frontend/browser/* ./publish/server-${{ matrix.rid }}/wwwroot/
       - name: Self-test (linux)
         if: matrix.rid == 'linux-x64'
-        run: ./dist/taiga-${{ github.ref_name }}-linux-x64/Taiga.App --self-test
-      - name: Pack (linux)
+        run: ./publish/server-linux-x64/Taiga.Server --self-test
+      - name: Build shell
+        run: |
+          npm ci --prefix electron
+          npm run build --prefix electron
+      - name: Pack (linux deb + dir)
         if: matrix.rid == 'linux-x64'
         run: |
-          cp setup/linux/taiga.desktop ./dist/taiga-${{ github.ref_name }}-linux-x64/
-          tar -czf ./dist/taiga-${{ github.ref_name }}-linux-x64.tar.gz -C ./dist taiga-${{ github.ref_name }}-linux-x64
+          npm run pack-linux --prefix electron
+          cp setup/linux/taiga.desktop ./electron/release/linux-unpacked/
+          tar -czf ./dist/taiga-${{ github.ref_name }}-linux-x64.tar.gz -C ./electron/release linux-unpacked
+          mv ./electron/release/linux-unpacked ./dist/taiga-${{ github.ref_name }}-linux-x64
           (cd ./dist && sha256sum taiga-${{ github.ref_name }}-linux-x64.tar.gz > taiga-${{ github.ref_name }}-linux-x64.tar.gz.sha256)
-      - name: Pack (windows)
+      - name: Pack (windows nsis)
         if: matrix.rid == 'win-x64'
-        run: >
-          Compress-Archive -Path ./dist/taiga-${{ github.ref_name }}-win-x64/*
-          -DestinationPath ./dist/taiga-${{ github.ref_name }}-win-x64.zip
+        run: npm run pack-win --prefix electron
       - uses: actions/upload-artifact@v4
         with:
           name: taiga-${{ matrix.rid }}
-          path: ./dist/taiga-${{ github.ref_name }}-${{ matrix.rid }}.${{ matrix.ext }}*
+          path: |
+            ./dist/
+            ./electron/release/*.exe
+            ./electron/release/*.deb
 
   release:
     needs: publish
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: setup/arch
       - uses: actions/download-artifact@v4
         with:
           path: ./dist
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          files: ./dist/*
+          files: |
+            ./dist/**/*
+            setup/arch/PKGBUILD
+            setup/arch/.SRCINFO
           generate_release_notes: true

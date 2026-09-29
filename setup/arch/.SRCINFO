@@ -1,0 +1,22 @@
+pkgbase = taiga-bin
+	pkgdesc = Anime tracker de escritorio (backend .NET + Angular + Electron)
+	pkgver = 3.0.0_net10_preview.2
+	pkgrel = 1
+	url = https://github.com/Lubonch/taiga
+	arch = x86_64
+	license = GPL-3.0-or-later
+	depends = alsa-lib
+	depends = gtk3
+	depends = libnotify
+	depends = nss
+	depends = libxss
+	depends = libxtst
+	depends = xdg-utils
+	depends = libutil-linux
+	optdepends = playerctl: detección MPRIS de reproductores
+	source = taiga-3.0.0-net10-preview.2-linux-x64.tar.gz::https://github.com/Lubonch/taiga/releases/download/v3.0.0-net10-preview.2/taiga-3.0.0-net10-preview.2-linux-x64.tar.gz
+	source = taiga.desktop
+	sha256sums = c742d204c4ce6d9636412cb0ef34318c9cca0172658932390867417cd14575b9
+	sha256sums = e60e35b8ffe098627facdff9ae8ea625ae0ef27b4305f07b93d1211836f0a0b5
+
+pkgname = taiga-bin

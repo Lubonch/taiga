@@ -8,7 +8,7 @@ namespace Taiga.Core.Taiga;
 /// </summary>
 public static class AppInfo
 {
-    public const string Version = "3.0.0-net10-preview.1";
+    public const string Version = "3.0.0-net10-preview.2";
     public const string Name = "Taiga";
 }
 

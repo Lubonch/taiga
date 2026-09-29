@@ -7,3 +7,8 @@
 [Bb]in/
 [Oo]bj/
 TestResults/
+# Salidas de empaquetado (se regeneran en CI)
+/publish/
+/dist/
+/electron/dist/
+/electron/release/

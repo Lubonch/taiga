@@ -1,0 +1,23 @@
+{
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "asar": "^3.2.0",
+    "electron": "^38.8.6",
+    "electron-builder": "^26.15.3",
+    "typescript": "^7.0.2"
+  },
+  "name": "taiga-shell",
+  "version": "3.0.0-net10-preview.2",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dist": "electron-builder",
+    "dist-dir": "electron-builder --dir",
+    "pack-linux": "electron-builder --linux deb --x64",
+    "pack-win": "electron-builder --win nsis --x64"
+  },
+  "allowScripts": {
+    "electron@38.8.6": true,
+    "electron-winstaller@5.4.0": true
+  }
+}
